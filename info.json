@@ -1,6 +1,6 @@
 {
   "name": "minable_tiles",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "factorio_version": "1.1",
   "title": "Minable tiles [BETA?]",
   "author": "ZwerOxotnik",
@@ -10,6 +10,7 @@
   "description": "Mining drills can mine tiles now.\nCustomizable during the game, no restart requires.\nShould be compatible with any mod, otherwire report or write a request.\nVery low impact on UPS.",
   "dependencies": [
     "zk-lib >= 0.10.24",
-		"? gvv"
+		"? gvv",
+    "? RitnGlass"
   ]
 }

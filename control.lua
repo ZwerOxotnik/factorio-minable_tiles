@@ -14,7 +14,7 @@ local memorized_tiles_mt = {
 		if resources_by_types[dirt_type] and k:find("dirt") then
 			self[k] = dirt_type
 			return dirt_type
-		elseif resources_by_types[sand_type] and k:find("sand") then
+		elseif resources_by_types[sand_type] and (k:find("sand") or k:find("desert")) then
 			self[k] = sand_type
 			return sand_type
 		elseif resources_by_types[grass_type] and k:find("grass") then
@@ -37,13 +37,13 @@ local resource_data = {
 	snap_to_tile_center = false
 }
 local entity_data = {
-  name = "electric-mining-drill-for_tiles",
-  force = nil,
-  direction = nil,
-  player = nil,
-  position = {},
-  raise_built = true,
-  create_build_effect_smoke = false
+	name = "electric-mining-drill-for_tiles",
+	force = nil,
+	direction = nil,
+	player = nil,
+	position = {},
+	raise_built = true,
+	create_build_effect_smoke = false
 }
 local tile_filter = {
 	position = {},
@@ -55,15 +55,15 @@ local function on_new_entity_via_fake(event)
 	local entity = event.created_entity or event.entity or event.destination
 	if not (entity and entity.valid) then return end
 
-  local surface = entity.surface
+	local surface = entity.surface
 	local position = entity.position
 
-  entity_data.force = entity.force
-  entity_data.player = entity.last_user
-  entity_data.position = position
-  entity_data.direction = entity.direction
+	entity_data.force = entity.force
+	entity_data.player = entity.last_user
+	entity_data.position = position
+	entity_data.direction = entity.direction
 	entity.destroy()
-  surface.create_entity(entity_data)
+	surface.create_entity(entity_data)
 
 	tile_filter.position = position
 	local entities = surface.find_tiles_filtered(tile_filter)
@@ -97,7 +97,7 @@ local function on_new_entity_via_original(event)
 	local entity = event.entity or event.destination
 	if not (entity and entity.valid) then return end
 
-  local surface = entity.surface
+	local surface = entity.surface
 	local position = entity.position
 
 	tile_filter.position = position
@@ -129,19 +129,19 @@ local function on_new_entity_via_original(event)
 end
 
 local filter_for_entities = {
-  position = {},
-  type = "resource"
+	position = {},
+	type = "resource"
 }
 local function on_removed_entity(event)
 	local entity = event.entity
 	if not (entity and entity.valid) then return end
 
-  local surface = entity.surface
+	local surface = entity.surface
 	filter_for_entities.position = entity.position
-  local entities = surface.find_entities_filtered(filter_for_entities)
-  for i=#entities, 1, -1 do
-    entities[i].destroy()
-  end
+	local entities = surface.find_entities_filtered(filter_for_entities)
+	for i=#entities, 1, -1 do
+		entities[i].destroy()
+	end
 end
 
 
@@ -212,12 +212,20 @@ local function add_to_array(array, data)
 	array[#array+1] = data
 end
 
+-- TODO: add notifications
+local resource_filter = {{
+	filter = "type",
+	type = "resource"
+}}
 mod_settings = {
 	["MT_stone_from_dirt"] = function(value)
 		resources_by_types[dirt_type] = resources_by_types[dirt_type] or {}
 		local resources = resources_by_types[dirt_type]
 		if value then
-			add_to_array(resources, "stone")
+			local prototypes = game.get_filtered_entity_prototypes(resource_filter) -- TODO: change
+			if prototypes["stone"] then
+				add_to_array(resources, "stone")
+			end
 			return
 		end
 
@@ -230,7 +238,10 @@ mod_settings = {
 		resources_by_types[grass_type] = resources_by_types[grass_type] or {}
 		local resources = resources_by_types[grass_type]
 		if value then
-			add_to_array(resources, "stone")
+			local prototypes = game.get_filtered_entity_prototypes(resource_filter) -- TODO: change
+			if prototypes["stone"] then
+				add_to_array(resources, "stone")
+			end
 			return
 		end
 
@@ -242,15 +253,11 @@ mod_settings = {
 	["MT_sand_from_sand"] = function(value)
 		resources_by_types[sand_type] = resources_by_types[sand_type] or {}
 		local resources = resources_by_types[sand_type]
-		local filter = {{
-			filter = "type",
-			type = "resource"
-		}}
-		local prototypes = game.get_filtered_entity_prototypes(filter)
+		local prototypes = game.get_filtered_entity_prototypes(resource_filter)
 
 		if value then
 			for name in pairs(prototypes) do
-				if name:find("sand") then
+				if name:find("sand") or name:find("desert") then
 					add_to_array(resources, name)
 				end
 			end
@@ -261,12 +268,38 @@ mod_settings = {
 		end
 
 		for name in pairs(prototypes) do
-			if name:find("sand") then
+			if name:find("sand") or name:find("desert") then
 				remove_from_array(resources, name)
 			end
 		end
 		if #resources == 0 then
 			resources_by_types[sand_type] = nil
+		end
+	end,
+	["MT_sand_from_dirt"] = function(value)
+		resources_by_types[dirt_type] = resources_by_types[dirt_type] or {}
+		local resources = resources_by_types[dirt_type]
+		local prototypes = game.get_filtered_entity_prototypes(resource_filter)
+
+		if value then
+			for name in pairs(prototypes) do
+				if name:find("dirt") then
+					add_to_array(resources, name)
+				end
+			end
+			if #resources == 0 then
+				resources_by_types[dirt_type] = nil
+			end
+			return
+		end
+
+		for name in pairs(prototypes) do
+			if name:find("dirt") then
+				remove_from_array(resources, name)
+			end
+		end
+		if #resources == 0 then
+			resources_by_types[dirt_type] = nil
 		end
 	end
 }
@@ -276,6 +309,7 @@ script.on_event(
 		local setting_name = event.setting
 		local f = mod_settings[setting_name]
 		if f == nil then return end
+
 		memorized_tiles = {}
 		setmetatable(memorized_tiles, memorized_tiles_mt)
 		f(settings.global[setting_name].value)
