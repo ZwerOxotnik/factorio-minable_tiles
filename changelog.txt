@@ -1,0 +1,6 @@
+﻿---------------------------------------------------------------------------------------------------
+Version: 0.5.0
+Date: 2022-05-29
+  Notes:
+    - First public release for 1.1
+    - I decided to trust to players more, than to devs.  
