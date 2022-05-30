@@ -9,9 +9,7 @@ local resources_by_types
 --#endregion
 
 
----@type table<string, integer>
-local memorized_tiles = {}
-setmetatable(memorized_tiles, {
+local memorized_tiles_mt = {
 	__index = function(self, k)
 		if resources_by_types[dirt_type] and k:find("dirt") then
 			self[k] = dirt_type
@@ -26,7 +24,10 @@ setmetatable(memorized_tiles, {
 		self[k] = unimportant_type
 		return unimportant_type
 	end
-})
+}
+---@type table<string, integer>
+local memorized_tiles = {}
+setmetatable(memorized_tiles, memorized_tiles_mt)
 
 
 local resource_data = {
@@ -67,10 +68,14 @@ local function on_new_entity_via_fake(event)
 	tile_filter.position = position
 	local entities = surface.find_tiles_filtered(tile_filter)
 	local tile_data = {}
+	local prev_name
 	for i=1, #entities do
 		local name = entities[i].name
-		local tile_type = memorized_tiles[name]
-		tile_data[tile_type] = true
+		if prev_name ~= name then
+			prev_name = name
+			local tile_type = memorized_tiles[name]
+			tile_data[tile_type] = true
+		end
 	end
 
 	resource_data.position = position
@@ -98,10 +103,14 @@ local function on_new_entity_via_original(event)
 	tile_filter.position = position
 	local entities = surface.find_tiles_filtered(tile_filter)
 	local tile_data = {}
+	local prev_name
 	for i=1, #entities do
 		local name = entities[i].name
-		local tile_type = memorized_tiles[name]
-		tile_data[tile_type] = true
+		if prev_name ~= name then
+			prev_name = name
+			local tile_type = memorized_tiles[name]
+			tile_data[tile_type] = true
+		end
 	end
 
 	resource_data.position = position
@@ -266,7 +275,10 @@ script.on_event(
 	function(event)
 		local setting_name = event.setting
 		local f = mod_settings[setting_name]
-		if f then f(settings.global[setting_name].value) end
+		if f == nil then return end
+		memorized_tiles = {}
+		setmetatable(memorized_tiles, memorized_tiles_mt)
+		f(settings.global[setting_name].value)
 	end
 )
 
