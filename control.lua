@@ -2,6 +2,7 @@ local unimportant_type = 0
 local dirt_type = 1
 local grass_type = 2
 local sand_type = 3
+local volcanic_type = 4 -- https://mods.factorio.com/mod/alien-biomes
 
 
 --#region Global data
@@ -11,15 +12,18 @@ local resources_by_types
 
 local memorized_tiles_mt = {
 	__index = function(self, k)
-		if resources_by_types[dirt_type] and k:find("dirt") then
+		if resources_by_types[volcanic_type] and k:find("volcanic") then
+			self[k] = grass_type
+			return grass_type
+		elseif resources_by_types[dirt_type] and k:find("dirt") then
 			self[k] = dirt_type
 			return dirt_type
-		elseif resources_by_types[sand_type] and (k:find("sand") or k:find("desert")) then
-			self[k] = sand_type
-			return sand_type
 		elseif resources_by_types[grass_type] and k:find("grass") then
 			self[k] = grass_type
 			return grass_type
+		elseif resources_by_types[sand_type] and (k:find("sand") or k:find("desert")) then
+			self[k] = sand_type
+			return sand_type
 		end
 		self[k] = unimportant_type
 		return unimportant_type
@@ -218,6 +222,22 @@ local resource_filter = {{
 	type = "resource"
 }}
 mod_settings = {
+	["MT_stone_from_volcanic"] = function(value)
+		resources_by_types[volcanic_type] = resources_by_types[volcanic_type] or {}
+		local resources = resources_by_types[volcanic_type]
+		if value then
+			local prototypes = game.get_filtered_entity_prototypes(resource_filter) -- TODO: change
+			if prototypes["stone"] then
+				add_to_array(resources, "stone")
+			end
+			return
+		end
+
+		remove_from_array(resources, "stone")
+		if #resources == 0 then
+			resources_by_types[volcanic_type] = nil
+		end
+	end,
 	["MT_stone_from_dirt"] = function(value)
 		resources_by_types[dirt_type] = resources_by_types[dirt_type] or {}
 		local resources = resources_by_types[dirt_type]
@@ -325,9 +345,11 @@ local function update_global_data()
 	global.resources_by_types = {}
 	link_data()
 
+	mod_settings["MT_stone_from_volcanic"](settings.global["MT_stone_from_volcanic"].value)
 	mod_settings["MT_stone_from_dirt"](settings.global["MT_stone_from_dirt"].value)
 	mod_settings["MT_stone_from_grass"](settings.global["MT_stone_from_grass"].value)
 	mod_settings["MT_sand_from_sand"](settings.global["MT_sand_from_sand"].value)
+	mod_settings["MT_sand_from_dirt"](settings.global["MT_sand_from_dirt"].value)
 end
 
 script.on_init(update_global_data)
